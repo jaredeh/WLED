@@ -192,6 +192,7 @@ void BusDigital::setStatusPixel(uint32_t c) {
 }
 
 void IRAM_ATTR BusDigital::setPixelColor(uint16_t pix, uint32_t c) {
+<<<<<<< HEAD
   if (!_valid) return;
   if (Bus::hasWhite(_type)) c = autoWhiteCalc(c);
   if (_cct >= 1900) c = colorBalanceFromKelvin(_cct, c); //color correction from CCT
@@ -202,6 +203,21 @@ void IRAM_ATTR BusDigital::setPixelColor(uint16_t pix, uint32_t c) {
       _data[offset++] = R(c);
       _data[offset++] = G(c);
       _data[offset++] = B(c);
+=======
+  if (_type == TYPE_FW1906 || _type == TYPE_SK6812_RGBW || _type == TYPE_TM1814 || _type == TYPE_WS2812_1CH_X3) c = autoWhiteCalc(c);
+  if (_cct >= 1900) c = colorBalanceFromKelvin(_cct, c); //color correction from CCT
+  if (reversed) pix = _len - pix -1;
+  else pix += _skip;
+  uint8_t co = _colorOrderMap.getPixelColorOrder(pix+_start, _colorOrder);
+  if (_type == TYPE_WS2812_1CH_X3) { // map to correct IC, each controls 3 LEDs
+    uint16_t pOld = pix;
+    pix = IC_INDEX_WS2812_1CH_3X(pix);
+    uint32_t cOld = PolyBus::getPixelColor(_busPtr, _iType, pix, co);
+    switch (pOld % 3) { // change only the single channel (TODO: this can cause loss because of get/set)
+      case 0: c = RGBW32(R(cOld), W(c)   , B(cOld), 0); break;
+      case 1: c = RGBW32(W(c)   , G(cOld), B(cOld), 0); break;
+      case 2: c = RGBW32(R(cOld), G(cOld), W(c)   , 0); break;
+>>>>>>> b3eb76c4 (Restore CCT for RGB)
     }
     if (Bus::hasWhite(_type)) _data[offset] = W(c);
   } else {
