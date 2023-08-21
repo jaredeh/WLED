@@ -284,7 +284,7 @@ void getSettingsJS(byte subPage, char* dest)
     sappends('s',SET_F("RMAC"),linked_remote);
     #else
     //hide remote settings if not compiled
-    oappend(SET_F("document.getElementById('remd').style.display='none';"));
+    oappend(SET_F("toggle('ESPNOW');"));  // hide ESP-NOW setting
     #endif
 
     #ifdef WLED_USE_ETHERNET
@@ -480,6 +480,11 @@ void getSettingsJS(byte subPage, char* dest)
   {
     sappend('v',SET_F("UP"),udpPort);
     sappend('v',SET_F("U2"),udpPort2);
+  #ifndef WLED_DISABLE_ESPNOW
+    sappend('c',SET_F("EN"),useESPNowSync);
+  #else
+    oappend(SET_F("toggle('ESPNOW');"));  // hide ESP-NOW setting
+  #endif
     sappend('v',SET_F("GS"),syncGroups);
     sappend('v',SET_F("GR"),receiveGroups);
 

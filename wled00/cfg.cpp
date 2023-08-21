@@ -382,6 +382,10 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   CJSON(udpPort, if_sync[F("port0")]); // 21324
   CJSON(udpPort2, if_sync[F("port1")]); // 65506
 
+#ifndef WLED_DISABLE_ESPNOW
+  CJSON(useESPNowSync, if_sync[F("espnow")]);
+#endif
+
   JsonObject if_sync_recv = if_sync["recv"];
   CJSON(receiveNotificationBrightness, if_sync_recv["bri"]);
   CJSON(receiveNotificationColor, if_sync_recv["col"]);
@@ -847,6 +851,10 @@ void serializeConfig() {
   JsonObject if_sync = interfaces.createNestedObject("sync");
   if_sync[F("port0")] = udpPort;
   if_sync[F("port1")] = udpPort2;
+
+#ifndef WLED_DISABLE_ESPNOW
+  if_sync[F("espnow")] = useESPNowSync;
+#endif
 
   JsonObject if_sync_recv = if_sync.createNestedObject("recv");
   if_sync_recv["bri"] = receiveNotificationBrightness;

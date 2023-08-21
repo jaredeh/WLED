@@ -673,6 +673,13 @@ void WLED::initConnection()
   ws.onEvent(wsEvent);
   #endif
 
+#ifndef WLED_DISABLE_ESPNOW
+  if (useESPNowSync && interfacesInited) {
+    DEBUG_PRINTLN(F("ESP-NOW stopping."));
+    quickEspNow.stop();
+  }
+#endif
+
   WiFi.disconnect(true);        // close old connections
 #ifdef ESP8266
   WiFi.setPhyMode(WIFI_PHY_MODE_11N);
@@ -729,6 +736,22 @@ void WLED::initConnection()
 void WLED::initInterfaces()
 {
   DEBUG_PRINTLN(F("Init STA interfaces"));
+
+#ifndef WLED_DISABLE_ESPNOW
+  if (useESPNowSync) {
+    quickEspNow.onDataRcvd(espNowReceiveCB);
+    if (apActive || !WLED_CONNECTED) {
+      DEBUG_PRINTLN(F("ESP-NOW initing in AP mode."));
+      #ifdef ESP32
+      quickEspNow.setWiFiBandwidth(WIFI_IF_AP, WIFI_BW_HT20); // Only needed for ESP32 in case you need coexistence with ESP8266 in the same network
+      #endif //ESP32
+      quickEspNow.begin(apChannel, WIFI_IF_AP); // Same channel must be used for both AP and ESP-NOW
+    } else {
+      //quickEspNow.begin(); // Use no parameters to start ESP-NOW on same channel as WiFi, in STA mode
+      //DEBUG_PRINTLN(F("ESP-NOW initing in STA mode."));
+    }
+  }
+#endif
 
 #ifndef WLED_DISABLE_HUESYNC
   IPAddress ipAddress = Network.localIP();
@@ -847,8 +870,8 @@ void WLED::handleConnection()
   if (!Network.isConnected()) {
     if (interfacesInited) {
       DEBUG_PRINTLN(F("Disconnected!"));
-      interfacesInited = false;
       initConnection();
+      interfacesInited = false;
     }
     //send improv failed 6 seconds after second init attempt (24 sec. after provisioning)
     if (improvActive > 2 && now - lastReconnectAttempt > 6000) {

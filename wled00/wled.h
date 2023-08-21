@@ -8,7 +8,7 @@
  */
 
 // version code in format yymmddb (b = daily build)
-#define VERSION 2308110
+#define VERSION 2308170
 
 //uncomment this if you have a "my_config.h" file you'd like to use
 //#define WLED_USE_MY_CONFIG
@@ -77,6 +77,9 @@
   }
   #ifndef WLED_DISABLE_ESPNOW
     #include <espnow.h>
+    #define WIFI_MODE_STA WIFI_STA
+    #define WIFI_MODE_AP WIFI_AP
+    #include <QuickEspNow.h>
   #endif
 #else // ESP32
   #include <HardwareSerial.h>  // ensure we have the correct "Serial" on new MCUs (depends on ARDUINO_USB_MODE and ARDUINO_USB_CDC_ON_BOOT)
@@ -97,6 +100,7 @@
 
   #ifndef WLED_DISABLE_ESPNOW
     #include <esp_now.h>
+    #include <QuickEspNow.h>
   #endif
 #endif
 #include <Wire.h>
@@ -382,6 +386,7 @@ WLED_GLOBAL uint16_t udpPort    _INIT(21324); // WLED notifier default port
 WLED_GLOBAL uint16_t udpPort2   _INIT(65506); // WLED notifier supplemental port
 WLED_GLOBAL uint16_t udpRgbPort _INIT(19446); // Hyperion port
 
+WLED_GLOBAL bool useESPNowSync    _INIT(false);                   // use ESP-NOW wireless technology
 WLED_GLOBAL uint8_t syncGroups    _INIT(0x01);                    // sync groups this instance syncs (bit mapped)
 WLED_GLOBAL uint8_t receiveGroups _INIT(0x01);                    // sync receive groups this instance belongs to (bit mapped)
 WLED_GLOBAL bool receiveNotificationBrightness _INIT(true);       // apply brightness from incoming notifications

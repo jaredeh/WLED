@@ -293,6 +293,26 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     t = request->arg(F("U2")).toInt();
     if (t > 0) udpPort2 = t;
 
+    #ifndef WLED_DISABLE_ESPNOW
+    bool oldESPNowSync = useESPNowSync;
+    useESPNowSync = request->hasArg(F("EN"));
+    if (oldESPNowSync != useESPNowSync) {
+      if (oldESPNowSync) {
+        DEBUG_PRINTLN(F("ESP-NOW stopping."));
+        quickEspNow.stop();
+      } else {
+        quickEspNow.onDataRcvd(espNowReceiveCB);
+        if (apActive || !WLED_CONNECTED) {
+          DEBUG_PRINTLN(F("ESP-NOW initing in AP mode."));
+          #ifdef ESP32
+          quickEspNow.setWiFiBandwidth(WIFI_IF_AP, WIFI_BW_HT20); // Only needed for ESP32 in case you need coexistence with ESP8266 in the same network
+          #endif //ESP32
+          quickEspNow.begin(apChannel, WIFI_IF_AP); // Same channel must be used for both AP and ESP-NOW
+        }
+      }
+    }
+    #endif
+
     syncGroups = request->arg(F("GS")).toInt();
     receiveGroups = request->arg(F("GR")).toInt();
 
