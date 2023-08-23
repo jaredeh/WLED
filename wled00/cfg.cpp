@@ -35,7 +35,14 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   CJSON(simplifiedUI, id[F("sui")]);
 #endif
 
-  JsonObject nw_ins_0 = doc["nw"]["ins"][0];
+  JsonObject nw = doc["nw"];
+#ifndef WLED_DISABLE_ESPNOW
+  CJSON(enableESPNow, nw[F("espnow")]);
+  getStringFromJson(linked_remote, nw[F("linekd_remote")], 13);
+  linked_remote[12] = '\0';
+#endif
+
+  JsonObject nw_ins_0 = nw["ins"][0];
   getStringFromJson(clientSSID, nw_ins_0[F("ssid")], 33);
   //int nw_ins_0_pskl = nw_ins_0[F("pskl")];
   //The WiFi PSK is normally not contained in the regular file for security reasons.
@@ -457,13 +464,6 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   CJSON(retainMqttMsg, if_mqtt[F("rtn")]);
 #endif
 
-#ifndef WLED_DISABLE_ESPNOW
-  JsonObject remote = doc["remote"];
-  CJSON(enable_espnow_remote, remote[F("remote_enabled")]);
-  getStringFromJson(linked_remote, remote[F("linked_remote")], 13);
-#endif
-
-
 #ifndef WLED_DISABLE_HUESYNC
   JsonObject if_hue = interfaces["hue"];
   CJSON(huePollingEnabled, if_hue["en"]);
@@ -651,6 +651,10 @@ void serializeConfig() {
 #endif
 
   JsonObject nw = doc.createNestedObject("nw");
+#ifndef WLED_DISABLE_ESPNOW
+  nw[F("espnow")] = enableESPNow;
+  nw[F("linked_remote")] = linked_remote;
+#endif
 
   JsonArray nw_ins = nw.createNestedArray("ins");
 
@@ -919,13 +923,6 @@ void serializeConfig() {
   if_mqtt_topics[F("device")] = mqttDeviceTopic;
   if_mqtt_topics[F("group")] = mqttGroupTopic;
 #endif
-
-#ifndef WLED_DISABLE_ESPNOW
-  JsonObject remote = doc.createNestedObject(F("remote"));
-  remote[F("remote_enabled")] = enable_espnow_remote;
-  remote[F("linked_remote")] = linked_remote;
-#endif
-
 
 #ifndef WLED_DISABLE_HUESYNC
   JsonObject if_hue = interfaces.createNestedObject("hue");

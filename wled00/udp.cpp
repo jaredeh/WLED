@@ -150,7 +150,7 @@ void notify(byte callMode, bool followUp)
   //next value to be added has index: udpOut[offs + 0]
 
 #ifndef WLED_DISABLE_ESPNOW
-  if (useESPNowSync && (apActive || !WLED_CONNECTED)) {
+  if (enableESPNow && useESPNowSync && (apActive || !WLED_CONNECTED)) {
     partial_packet_t buffer = {'W', 0, (uint8_t)s, {0}};
     // send global data
     DEBUG_PRINTF("ESP-NOW sending first packet. (%d)\n", 41+3);
@@ -909,9 +909,16 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
 // ESP-NOW message receive callback function
 // WARNING: ATM clashes with remote.cpp WizMote handling.
 void espNowReceiveCB(uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {
-  partial_packet_t *buffer = reinterpret_cast<partial_packet_t *>(data);
+  sprintf_P(last_signal_src, PSTR("%02x%02x%02x%02x%02x%02x"), address[0], address[1], address[2], address[3], address[4], address[5]);
 
-  if (len < 3 || !broadcast || buffer->magic != 'W') return;
+  // handle WiZ Mote data
+  if (data[0] == 0x91 || data[0] == 0x81) {
+    handleRemote(data, len);
+    return;
+  }
+
+  partial_packet_t *buffer = reinterpret_cast<partial_packet_t *>(data);
+  if (len < 3 || !broadcast || buffer->magic != 'W' || !useESPNowSync || WLED_CONNECTED) return;
 
   static uint8_t *udpIn = nullptr;
   static uint8_t packetsReceived = 0; // bitfield (max 5 packets ATM)
