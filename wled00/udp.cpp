@@ -205,7 +205,7 @@ void parseNotifyPacket(uint8_t *udpIn) {
   DEBUG_PRINT(F("UDP version: ")); DEBUG_PRINTLN(version);
 
   // if we are not part of any sync group ignore message
-  if (version < 9 || version > 199) {
+  if (version < 9) {
     // legacy senders are treated as if sending in sync group 1 only
     if (!(receiveGroups & 0x01)) return;
   } else if (!(receiveGroups & udpIn[36])) return;
@@ -221,7 +221,7 @@ void parseNotifyPacket(uint8_t *udpIn) {
     }
     if (version > 6) {
       strip.setColor(2, RGBW32(udpIn[20], udpIn[21], udpIn[22], udpIn[23])); // tertiary color
-      if (version > 9 && version < 200 && udpIn[37] < 255) { // valid CCT/Kelvin value
+      if (version > 9 && udpIn[37] < 255) { // valid CCT/Kelvin value
         uint16_t cct = udpIn[38];
         if (udpIn[37] > 0) { //Kelvin
           cct |= (udpIn[37] << 8);
@@ -234,93 +234,91 @@ void parseNotifyPacket(uint8_t *udpIn) {
   bool timebaseUpdated = false;
   //apply effects from notification
   bool applyEffects = (receiveNotificationEffects || !someSel);
-  if (version < 200)
-  {
-    if (applyEffects && currentPlaylist >= 0) unloadPlaylist();
-    if (version > 10 && (receiveSegmentOptions || receiveSegmentBounds)) {
-      uint8_t numSrcSegs = udpIn[39];
-      DEBUG_PRINT(F("UDP segments: ")); DEBUG_PRINTLN(numSrcSegs);
-      for (size_t i = 0; i < numSrcSegs; i++) {
-        uint16_t ofs = 41 + i*udpIn[40]; //start of segment offset byte
-        uint8_t id = udpIn[0 +ofs];
-        if (id >= strip.getSegmentsNum()) break;
-        DEBUG_PRINT(F("UDP segment: ")); DEBUG_PRINTLN(id);
+  if (applyEffects && currentPlaylist >= 0) unloadPlaylist();
+  if (version > 10 && (receiveSegmentOptions || receiveSegmentBounds)) {
+    uint8_t numSrcSegs = udpIn[39];
+    DEBUG_PRINT(F("UDP segments: ")); DEBUG_PRINTLN(numSrcSegs);
+    for (size_t i = 0; i < numSrcSegs; i++) {
+      uint16_t ofs = 41 + i*udpIn[40]; //start of segment offset byte
+      uint8_t id = udpIn[0 +ofs];
+      if (id >= strip.getSegmentsNum()) break;
+      DEBUG_PRINT(F("UDP segment: ")); DEBUG_PRINTLN(id);
 
-        Segment& selseg = strip.getSegment(id);
-        if (!selseg.isActive() || !selseg.isSelected()) continue; //do not apply to non selected segments
+      Segment& selseg = strip.getSegment(id);
+      if (!selseg.isActive() || !selseg.isSelected()) continue; //do not apply to non selected segments
 
-        uint16_t startY = 0, start  = (udpIn[1+ofs] << 8 | udpIn[2+ofs]);
-        uint16_t stopY  = 1, stop   = (udpIn[3+ofs] << 8 | udpIn[4+ofs]);
-        uint16_t offset = (udpIn[7+ofs] << 8 | udpIn[8+ofs]);
-        if (!receiveSegmentOptions) {
-          selseg.setUp(start, stop, selseg.grouping, selseg.spacing, offset, startY, stopY);
-          continue;
-        }
-        DEBUG_PRINT(F("UDP processing: ")); DEBUG_PRINTLN(id);
-        //for (size_t j = 1; j<4; j++) selseg.setOption(j, (udpIn[9 +ofs] >> j) & 0x01); //only take into account mirrored, on, reversed; ignore selected
-        selseg.options = (selseg.options & 0x0071U) | (udpIn[9 +ofs] & 0x0E); // ignore selected, freeze, reset & transitional
-        selseg.setOpacity(udpIn[10+ofs]);
+      uint16_t startY = 0, start  = (udpIn[1+ofs] << 8 | udpIn[2+ofs]);
+      uint16_t stopY  = 1, stop   = (udpIn[3+ofs] << 8 | udpIn[4+ofs]);
+      uint16_t offset = (udpIn[7+ofs] << 8 | udpIn[8+ofs]);
+      if (!receiveSegmentOptions) {
+        selseg.setUp(start, stop, selseg.grouping, selseg.spacing, offset, startY, stopY);
+        continue;
+      }
+      DEBUG_PRINT(F("UDP processing: ")); DEBUG_PRINTLN(id);
+      //for (size_t j = 1; j<4; j++) selseg.setOption(j, (udpIn[9 +ofs] >> j) & 0x01); //only take into account mirrored, on, reversed; ignore selected
+      selseg.options = (selseg.options & 0x0071U) | (udpIn[9 +ofs] & 0x0E); // ignore selected, freeze, reset & transitional
+      selseg.setOpacity(udpIn[10+ofs]);
+      if (applyEffects) {
+        selseg.setMode(udpIn[11+ofs]);
+        selseg.speed     = udpIn[12+ofs];
+        selseg.intensity = udpIn[13+ofs];
+        selseg.palette   = udpIn[14+ofs];
+      }
+      if (receiveNotificationColor || !someSel) {
+        selseg.setColor(0, RGBW32(udpIn[15+ofs],udpIn[16+ofs],udpIn[17+ofs],udpIn[18+ofs]));
+        selseg.setColor(1, RGBW32(udpIn[19+ofs],udpIn[20+ofs],udpIn[21+ofs],udpIn[22+ofs]));
+        selseg.setColor(2, RGBW32(udpIn[23+ofs],udpIn[24+ofs],udpIn[25+ofs],udpIn[26+ofs]));
+        selseg.setCCT(udpIn[27+ofs]);
+      }
+      if (version > 11) {
+        // when applying synced options ignore selected as it may be used as indicator of which segments to sync
+        // freeze, reset & transitional should never be synced
+        selseg.options = (selseg.options & 0x0071U) | (udpIn[28+ofs]<<8) | (udpIn[9 +ofs] & 0x8E); // ignore selected, freeze, reset & transitional
         if (applyEffects) {
-          strip.setMode(id,  udpIn[11+ofs]);
-          selseg.speed     = udpIn[12+ofs];
-          selseg.intensity = udpIn[13+ofs];
-          selseg.palette   = udpIn[14+ofs];
+          selseg.custom1 = udpIn[29+ofs];
+          selseg.custom2 = udpIn[30+ofs];
+          selseg.custom3 = udpIn[31+ofs] & 0x1F;
+          selseg.check1  = (udpIn[31+ofs]>>5) & 0x1;
+          selseg.check1  = (udpIn[31+ofs]>>6) & 0x1;
+          selseg.check1  = (udpIn[31+ofs]>>7) & 0x1;
         }
-        if (receiveNotificationColor || !someSel) {
-          selseg.setColor(0, RGBW32(udpIn[15+ofs],udpIn[16+ofs],udpIn[17+ofs],udpIn[18+ofs]));
-          selseg.setColor(1, RGBW32(udpIn[19+ofs],udpIn[20+ofs],udpIn[21+ofs],udpIn[22+ofs]));
-          selseg.setColor(2, RGBW32(udpIn[23+ofs],udpIn[24+ofs],udpIn[25+ofs],udpIn[26+ofs]));
-          selseg.setCCT(udpIn[27+ofs]);
-        }
-        if (version > 11) {
-          // when applying synced options ignore selected as it may be used as indicator of which segments to sync
-          // freeze, reset & transitional should never be synced
-          selseg.options = (selseg.options & 0x0071U) | (udpIn[28+ofs]<<8) | (udpIn[9 +ofs] & 0x8E); // ignore selected, freeze, reset & transitional
-          if (applyEffects) {
-            selseg.custom1 = udpIn[29+ofs];
-            selseg.custom2 = udpIn[30+ofs];
-            selseg.custom3 = udpIn[31+ofs] & 0x1F;
-            selseg.check1  = (udpIn[31+ofs]>>5) & 0x1;
-            selseg.check1  = (udpIn[31+ofs]>>6) & 0x1;
-            selseg.check1  = (udpIn[31+ofs]>>7) & 0x1;
-          }
-          startY = (udpIn[32+ofs] << 8 | udpIn[33+ofs]);
-          stopY  = (udpIn[34+ofs] << 8 | udpIn[35+ofs]);
-        }
-        if (receiveSegmentBounds) {
-          selseg.setUp(start, stop, udpIn[5+ofs], udpIn[6+ofs], offset, startY, stopY);
-        } else {
-          selseg.setUp(selseg.start, selseg.stop, udpIn[5+ofs], udpIn[6+ofs], selseg.offset, selseg.startY, selseg.stopY);
-        }
+        startY = (udpIn[32+ofs] << 8 | udpIn[33+ofs]);
+        stopY  = (udpIn[34+ofs] << 8 | udpIn[35+ofs]);
       }
-      stateChanged = true;
-    }
-
-    // simple effect sync, applies to all selected segments
-    if (applyEffects && (version < 11 || !receiveSegmentOptions)) {
-      for (size_t i = 0; i < strip.getSegmentsNum(); i++) {
-        Segment& seg = strip.getSegment(i);
-        if (!seg.isActive() || !seg.isSelected()) continue;
-        seg.setMode(udpIn[8]);
-        seg.speed = udpIn[9];
-        if (version > 2) seg.intensity = udpIn[16];
-        if (version > 4) seg.setPalette(udpIn[19]);
+      if (receiveSegmentBounds) {
+        // we have to use strip.setSegment() instead of selseg.setUp() to prevent crash if segment would change during drawing 
+        strip.setSegment(id, start, stop, udpIn[5+ofs], udpIn[6+ofs], offset, startY, stopY);
+      } else {
+        // we have to use strip.setSegment() instead of selseg.setUp() to prevent crash if segment would change during drawing 
+        strip.setSegment(id, selseg.start, selseg.stop, udpIn[5+ofs], udpIn[6+ofs], selseg.offset, selseg.startY, selseg.stopY);
       }
-      stateChanged = true;
     }
+    stateChanged = true;
+  }
 
-    if (applyEffects && version > 5) {
-      uint32_t t = (udpIn[25] << 24) | (udpIn[26] << 16) | (udpIn[27] << 8) | (udpIn[28]);
-      t += PRESUMED_NETWORK_DELAY; //adjust trivially for network delay
-      t -= millis();
-      strip.timebase = t;
-      timebaseUpdated = true;
+  // simple effect sync, applies to all selected segments
+  if (applyEffects && (version < 11 || !receiveSegmentOptions)) {
+    for (size_t i = 0; i < strip.getSegmentsNum(); i++) {
+      Segment& seg = strip.getSegment(i);
+      if (!seg.isActive() || !seg.isSelected()) continue;
+      seg.setMode(udpIn[8]);
+      seg.speed = udpIn[9];
+      if (version > 2) seg.intensity = udpIn[16];
+      if (version > 4) seg.setPalette(udpIn[19]);
     }
+    stateChanged = true;
+  }
+
+  if (applyEffects && version > 5) {
+    uint32_t t = (udpIn[25] << 24) | (udpIn[26] << 16) | (udpIn[27] << 8) | (udpIn[28]);
+    t += PRESUMED_NETWORK_DELAY; //adjust trivially for network delay
+    t -= millis();
+    strip.timebase = t;
+    timebaseUpdated = true;
   }
 
   //adjust system time, but only if sender is more accurate than self
-  if (version > 7 && version < 200)
-  {
+  if (version > 7) {
     Toki::Time tm;
     tm.sec = (udpIn[30] << 24) | (udpIn[31] << 16) | (udpIn[32] << 8) | (udpIn[33]);
     tm.ms = (udpIn[34] << 8) | (udpIn[35]);
@@ -342,8 +340,7 @@ void parseNotifyPacket(uint8_t *udpIn) {
     }
   }
 
-  if (version > 3)
-  {
+  if (version > 3) {
     transitionDelayTemp = ((udpIn[17] << 0) & 0xFF) + ((udpIn[18] << 8) & 0xFF00);
   }
 
@@ -910,6 +907,12 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
 // WARNING: ATM clashes with remote.cpp WizMote handling.
 void espNowReceiveCB(uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {
   sprintf_P(last_signal_src, PSTR("%02x%02x%02x%02x%02x%02x"), address[0], address[1], address[2], address[3], address[4], address[5]);
+
+  DEBUG_PRINT(F("ESP-NOW: ")); DEBUG_PRINT(last_signal_src); DEBUG_PRINT(F(" -> ")); DEBUG_PRINTLN(len);
+  #ifdef WLED_DEBUG
+    for (int i=0; i<len; i++) DEBUG_PRINTF("%02x ", data[i]);
+    DEBUG_PRINTLN();
+  #endif
 
   // handle WiZ Mote data
   if (data[0] == 0x91 || data[0] == 0x81) {
