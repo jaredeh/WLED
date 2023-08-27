@@ -8,7 +8,7 @@
  */
 
 // version code in format yymmddb (b = daily build)
-#define VERSION 2308220
+#define VERSION 2308270
 
 //uncomment this if you have a "my_config.h" file you'd like to use
 //#define WLED_USE_MY_CONFIG
@@ -463,11 +463,11 @@ WLED_GLOBAL bool hueApplyColor _INIT(true);
 WLED_GLOBAL uint16_t serialBaud _INIT(1152); // serial baud rate, multiply by 100
 
 #ifndef WLED_DISABLE_ESPNOW
-WLED_GLOBAL bool enableESPNow         _INIT(false); // global on/off for ESP-NOW
-WLED_GLOBAL byte statusESPNow         _INIT(0);     // state of ESP-NOW stack (0 uninitialised, 1 ninitialised, 2 error)
-WLED_GLOBAL bool useESPNowSync        _INIT(false); // use ESP-NOW wireless technology for sync
-WLED_GLOBAL char linked_remote[13]    _INIT("");    // MAC of ESP-NOW remote (Wiz Mote)
-WLED_GLOBAL char last_signal_src[13]  _INIT("");    // last seen ESP-NOW sender
+WLED_GLOBAL bool enableESPNow        _INIT(false);  // global on/off for ESP-NOW
+WLED_GLOBAL byte statusESPNow        _INIT(ESP_NOW_STATE_UNINIT); // state of ESP-NOW stack (0 uninitialised, 1 initialised, 2 error)
+WLED_GLOBAL bool useESPNowSync       _INIT(false);  // use ESP-NOW wireless technology for sync
+WLED_GLOBAL char linked_remote[13]   _INIT("");     // MAC of ESP-NOW remote (Wiz Mote)
+WLED_GLOBAL char last_signal_src[13] _INIT("");     // last seen ESP-NOW sender
 #endif
 
 // Time CONFIG

@@ -150,35 +150,33 @@ void notify(byte callMode, bool followUp)
   //next value to be added has index: udpOut[offs + 0]
 
 #ifndef WLED_DISABLE_ESPNOW
-  if (enableESPNow && useESPNowSync && (apActive || !WLED_CONNECTED)) {
+  if (enableESPNow && useESPNowSync && statusESPNow == ESP_NOW_STATE_ON /*&& (apActive || !WLED_CONNECTED)*/) {
     partial_packet_t buffer = {'W', 0, (uint8_t)s, {0}};
     // send global data
-    DEBUG_PRINTF("ESP-NOW sending first packet. (%d)\n", 41+3);
+    DEBUG_PRINTLN(F("ESP-NOW sending first packet.")); 
     memcpy(buffer.data, udpOut, 41);
     auto err = quickEspNow.send(ESPNOW_BROADCAST_ADDRESS, reinterpret_cast<const uint8_t*>(&buffer), 41+3);
     if (!err) {
       // send segment data
       buffer.packet++;
       size_t packetSize = 0;
+      int32_t err = 0;
       for (size_t i = 0; i < s; i++) {
         memcpy(buffer.data + packetSize, &udpOut[41+i*UDP_SEG_SIZE], UDP_SEG_SIZE);
         packetSize += UDP_SEG_SIZE;
         if (packetSize + UDP_SEG_SIZE < sizeof(buffer.data)/sizeof(uint8_t)) continue;
         DEBUG_PRINTF("ESP-NOW sending packet: %d (%d)\n", (int)buffer.packet, packetSize+3);
-        auto err = quickEspNow.send(ESPNOW_BROADCAST_ADDRESS, reinterpret_cast<const uint8_t*>(&buffer), packetSize+3);
+        err = quickEspNow.send(ESPNOW_BROADCAST_ADDRESS, reinterpret_cast<const uint8_t*>(&buffer), packetSize+3);
         buffer.packet++;
         packetSize = 0;
-        if (err) {
-          DEBUG_PRINTLN(F("ESP-NOW sending failed."));
-          break;
-        }
+        if (err) break;
       }
-      if (packetSize > 0) {
+      if (!err && packetSize > 0) {
         DEBUG_PRINTF("ESP-NOW sending last packet: %d (%d)\n", (int)buffer.packet, packetSize+3);
-        auto err = quickEspNow.send(ESPNOW_BROADCAST_ADDRESS, reinterpret_cast<const uint8_t*>(&buffer), packetSize+3);
-        if (err) {
-          DEBUG_PRINTLN(F("ESP-NOW sending last failed."));
-        }
+        err = quickEspNow.send(ESPNOW_BROADCAST_ADDRESS, reinterpret_cast<const uint8_t*>(&buffer), packetSize+3);
+      }
+      if (err) {
+        DEBUG_PRINTLN(F("ESP-NOW sending packet failed."));
       }
     }
   } else if (udpConnected) 
@@ -187,7 +185,7 @@ void notify(byte callMode, bool followUp)
     DEBUG_PRINTLN(F("UDP sending packet."));
     IPAddress broadcastIp = ~uint32_t(Network.subnetMask()) | uint32_t(Network.gatewayIP());
     notifierUdp.beginPacket(broadcastIp, udpPort);
-    notifierUdp.write(udpOut, WLEDPACKETSIZE);
+    notifierUdp.write(udpOut, WLEDPACKETSIZE); // TODO: add actual used buffer size
     notifierUdp.endPacket();
   }
   notificationSentCallMode = callMode;
@@ -904,24 +902,26 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
 
 #ifndef WLED_DISABLE_ESPNOW
 // ESP-NOW message receive callback function
-// WARNING: ATM clashes with remote.cpp WizMote handling.
 void espNowReceiveCB(uint8_t* address, uint8_t* data, uint8_t len, signed int rssi, bool broadcast) {
   sprintf_P(last_signal_src, PSTR("%02x%02x%02x%02x%02x%02x"), address[0], address[1], address[2], address[3], address[4], address[5]);
 
-  DEBUG_PRINT(F("ESP-NOW: ")); DEBUG_PRINT(last_signal_src); DEBUG_PRINT(F(" -> ")); DEBUG_PRINTLN(len);
   #ifdef WLED_DEBUG
+    DEBUG_PRINT(F("ESP-NOW: ")); DEBUG_PRINT(last_signal_src); DEBUG_PRINT(F(" -> ")); DEBUG_PRINTLN(len);
     for (int i=0; i<len; i++) DEBUG_PRINTF("%02x ", data[i]);
     DEBUG_PRINTLN();
   #endif
 
   // handle WiZ Mote data
-  if (data[0] == 0x91 || data[0] == 0x81) {
+  if (data[0] == 0x91 || data[0] == 0x81 || data[0] == 0x80) {
     handleRemote(data, len);
     return;
   }
 
   partial_packet_t *buffer = reinterpret_cast<partial_packet_t *>(data);
-  if (len < 3 || !broadcast || buffer->magic != 'W' || !useESPNowSync || WLED_CONNECTED) return;
+  if (len < 3 || !broadcast || buffer->magic != 'W' || !useESPNowSync || WLED_CONNECTED) {
+    DEBUG_PRINTLN(F("ESP-NOW unexpected packet, not syncing or connected to WiFi."));
+    return;
+  }
 
   static uint8_t *udpIn = nullptr;
   static uint8_t packetsReceived = 0; // bitfield (max 5 packets ATM)
@@ -955,7 +955,7 @@ void espNowReceiveCB(uint8_t* address, uint8_t* data, uint8_t len, signed int rs
 
   if (segsReceived == buffer->segs) {
     // last packet received
-    if (millis() - lastProcessed > 500) {
+    if (millis() - lastProcessed > 250) {
       DEBUG_PRINTLN(F("ESP-NOW processing complete message."));
       parseNotifyPacket(udpIn);
       lastProcessed = millis();

@@ -1,4 +1,5 @@
 #include "wled.h"
+#ifndef WLED_DISABLE_ESPNOW
 
 #define NIGHT_MODE_DEACTIVATED     -1
 #define NIGHT_MODE_BRIGHTNESS      5
@@ -144,3 +145,7 @@ void handleRemote(uint8_t *incomingData, size_t len) {
   }
   last_seq = cur_seq;
 }
+
+#else
+void handleRemote(uint8_t *incomingData, size_t len) {}
+#endif
