@@ -236,21 +236,28 @@ void parseNotifyPacket(uint8_t *udpIn) {
   if (version > 10 && (receiveSegmentOptions || receiveSegmentBounds)) {
     uint8_t numSrcSegs = udpIn[39];
     DEBUG_PRINT(F("UDP segments: ")); DEBUG_PRINTLN(numSrcSegs);
-    for (size_t i = 0; i < numSrcSegs; i++) {
+    for (size_t i = 0; i < numSrcSegs && i < strip.getMaxSegments(); i++) {
       uint16_t ofs = 41 + i*udpIn[40]; //start of segment offset byte
       uint8_t id = udpIn[0 +ofs];
-      if (id >= strip.getSegmentsNum()) break;
+      if      (id >  strip.getSegmentsNum()) break;
+      else if (id == strip.getSegmentsNum()) {
+        if (receiveSegmentBounds && id < strip.getMaxSegments()) strip.appendSegment();
+        else break;
+      }
       DEBUG_PRINT(F("UDP segment: ")); DEBUG_PRINTLN(id);
 
       Segment& selseg = strip.getSegment(id);
-      if (!selseg.isActive() || !selseg.isSelected()) continue; //do not apply to non selected segments
+      if (selseg.isActive() && !selseg.isSelected()) continue;    // do not apply to non selected segments
+      if (!receiveSegmentBounds && !selseg.isActive()) continue;  // ignore segment if it is inactive and we are not syncing bounds (TODO this one is tricky)
 
       uint16_t startY = 0, start  = (udpIn[1+ofs] << 8 | udpIn[2+ofs]);
       uint16_t stopY  = 1, stop   = (udpIn[3+ofs] << 8 | udpIn[4+ofs]);
       uint16_t offset = (udpIn[7+ofs] << 8 | udpIn[8+ofs]);
       if (!receiveSegmentOptions) {
-        selseg.setUp(start, stop, selseg.grouping, selseg.spacing, offset, startY, stopY);
-        continue;
+        //selseg.setUp(start, stop, selseg.grouping, selseg.spacing, offset, startY, stopY);
+        // we have to use strip.setSegment() instead of selseg.setUp() to prevent crash if segment would change during drawing 
+        strip.setSegment(id, start, stop, selseg.grouping, selseg.spacing, offset, startY, stopY);
+        continue; // we do receive bounds, but not options
       }
       DEBUG_PRINT(F("UDP processing: ")); DEBUG_PRINTLN(id);
       //for (size_t j = 1; j<4; j++) selseg.setOption(j, (udpIn[9 +ofs] >> j) & 0x01); //only take into account mirrored, on, reversed; ignore selected
@@ -929,7 +936,7 @@ void espNowReceiveCB(uint8_t* address, uint8_t* data, uint8_t len, signed int rs
   static unsigned long lastProcessed = 0;
 
   if (buffer->packet == 0) {
-    if (udpIn == nullptr) udpIn = (uint8_t *)malloc(WLEDPACKETSIZE);
+    if (udpIn == nullptr) udpIn = (uint8_t *)malloc(WLEDPACKETSIZE); // we cannot use stack as we are in callback
     DEBUG_PRINTLN(F("ESP-NOW inited UDP buffer."));
     memcpy(udpIn, buffer->data, len-3); // global data (41 bytes)
     packetsReceived |= 0x01 << buffer->packet;
