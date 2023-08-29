@@ -321,14 +321,11 @@ void getSettingsJS(byte subPage, char* dest)
     }
 
     #ifndef WLED_DISABLE_ESPNOW
-    if (last_signal_src[0] != 0) //Have seen an ESP-NOW Remote
-    {
+    if (strlen(last_signal_src) > 0) { //Have seen an ESP-NOW Remote
       sappends('m',SET_F("(\"rlid\")[0]"),last_signal_src);
-    } else if (!enableESPNow)
-    {
-      sappends('m',SET_F("(\"rlid\")[0]"),(char*)F("(Enable remote to listen)"));
-    } else 
-    {
+    } else if (!enableESPNow) {
+      sappends('m',SET_F("(\"rlid\")[0]"),(char*)F("(Enable ESP-NOW to listen)"));
+    } else {
       sappends('m',SET_F("(\"rlid\")[0]"),(char*)F("None"));
     }
     #endif
