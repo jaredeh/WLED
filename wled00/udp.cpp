@@ -150,7 +150,7 @@ void notify(byte callMode, bool followUp)
   //next value to be added has index: udpOut[offs + 0]
 
 #ifndef WLED_DISABLE_ESPNOW
-  if (enableESPNow && useESPNowSync && statusESPNow == ESP_NOW_STATE_ON /*&& (apActive || !WLED_CONNECTED)*/) {
+  if (enableESPNow && useESPNowSync && statusESPNow == ESP_NOW_STATE_ON) {
     partial_packet_t buffer = {'W', 0, (uint8_t)s, {0}};
     // send global data
     DEBUG_PRINTLN(F("ESP-NOW sending first packet.")); 
@@ -179,7 +179,8 @@ void notify(byte callMode, bool followUp)
         DEBUG_PRINTLN(F("ESP-NOW sending packet failed."));
       }
     }
-  } else if (udpConnected) 
+  }
+  if (udpConnected) 
 #endif
   {
     DEBUG_PRINTLN(F("UDP sending packet."));
@@ -200,7 +201,7 @@ void parseNotifyPacket(uint8_t *udpIn) {
 
   //compatibilityVersionByte:
   byte version = udpIn[11];
-  DEBUG_PRINT(F("UDP version: ")); DEBUG_PRINTLN(version);
+  DEBUG_PRINT(F("UDP packet version: ")); DEBUG_PRINTLN(version);
 
   // if we are not part of any sync group ignore message
   if (version < 9) {
@@ -236,19 +237,39 @@ void parseNotifyPacket(uint8_t *udpIn) {
   if (version > 10 && (receiveSegmentOptions || receiveSegmentBounds)) {
     uint8_t numSrcSegs = udpIn[39];
     DEBUG_PRINT(F("UDP segments: ")); DEBUG_PRINTLN(numSrcSegs);
+    // are we syncing bounds and slave has more active segments than master?
+    if (receiveSegmentBounds && numSrcSegs < strip.getActiveSegmentsNum()) {
+      DEBUG_PRINTLN(F("Removing excessive segments."));
+      for (size_t i=strip.getSegmentsNum(); i>numSrcSegs; i--) {
+        if (strip.getSegment(i).isActive()) {
+          strip.setSegment(i-1,0,0); // delete segment
+        }
+      }
+    }
+    size_t inactiveSegs = 0;
     for (size_t i = 0; i < numSrcSegs && i < strip.getMaxSegments(); i++) {
       uint16_t ofs = 41 + i*udpIn[40]; //start of segment offset byte
       uint8_t id = udpIn[0 +ofs];
+      DEBUG_PRINT(F("UDP segment received: ")); DEBUG_PRINTLN(id);
       if      (id >  strip.getSegmentsNum()) break;
       else if (id == strip.getSegmentsNum()) {
         if (receiveSegmentBounds && id < strip.getMaxSegments()) strip.appendSegment();
         else break;
       }
-      DEBUG_PRINT(F("UDP segment: ")); DEBUG_PRINTLN(id);
-
+      DEBUG_PRINT(F("UDP segment check: ")); DEBUG_PRINTLN(id);
       Segment& selseg = strip.getSegment(id);
-      if (selseg.isActive() && !selseg.isSelected()) continue;    // do not apply to non selected segments
-      if (!receiveSegmentBounds && !selseg.isActive()) continue;  // ignore segment if it is inactive and we are not syncing bounds (TODO this one is tricky)
+      // if we are not syncing bounds skip unselected segments
+      if (selseg.isActive() && !(selseg.isSelected() || receiveSegmentBounds)) continue;
+      // ignore segment if it is inactive and we are not syncing bounds
+      if (!receiveSegmentBounds) {
+        if (!selseg.isActive()) {
+          inactiveSegs++;
+          continue;
+        } else {
+          id += inactiveSegs; // adjust id
+        }
+      }
+      DEBUG_PRINT(F("UDP segment processing: ")); DEBUG_PRINTLN(id);
 
       uint16_t startY = 0, start  = (udpIn[1+ofs] << 8 | udpIn[2+ofs]);
       uint16_t stopY  = 1, stop   = (udpIn[3+ofs] << 8 | udpIn[4+ofs]);
@@ -259,8 +280,6 @@ void parseNotifyPacket(uint8_t *udpIn) {
         strip.setSegment(id, start, stop, selseg.grouping, selseg.spacing, offset, startY, stopY);
         continue; // we do receive bounds, but not options
       }
-      DEBUG_PRINT(F("UDP processing: ")); DEBUG_PRINTLN(id);
-      //for (size_t j = 1; j<4; j++) selseg.setOption(j, (udpIn[9 +ofs] >> j) & 0x01); //only take into account mirrored, on, reversed; ignore selected
       selseg.options = (selseg.options & 0x0071U) | (udpIn[9 +ofs] & 0x0E); // ignore selected, freeze, reset & transitional
       selseg.setOpacity(udpIn[10+ofs]);
       if (applyEffects) {
@@ -353,7 +372,6 @@ void parseNotifyPacket(uint8_t *udpIn) {
   if (nightlightActive) nightlightDelayMins = udpIn[7];
 
   if (receiveNotificationBrightness || !someSel) bri = udpIn[2];
-  DEBUG_PRINT(F("UDP brightness: ")); DEBUG_PRINTLN(bri);
   stateUpdated(CALL_MODE_NOTIFICATION);
 }
 

@@ -362,6 +362,8 @@ void Segment::setUp(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, uint16_t
       && (!grp || (grouping == grp && spacing == spc))
       && (ofs == UINT16_MAX || ofs == offset)) return;
 
+  stateChanged = true; // send UDP/WS broadcast
+
   if (stop) fill(BLACK); // turn old segment range off (clears pixels if changing spacing)
   if (grp) { // prevent assignment of 0
     grouping = grp;
@@ -372,6 +374,10 @@ void Segment::setUp(uint16_t i1, uint16_t i2, uint8_t grp, uint8_t spc, uint16_t
   }
   if (ofs < UINT16_MAX) offset = ofs;
 
+  DEBUG_PRINT(F("setUp segment: ")); DEBUG_PRINT(i1);
+  DEBUG_PRINT(','); DEBUG_PRINT(i2);
+  DEBUG_PRINT(F(" -> ")); DEBUG_PRINT(i1Y);
+  DEBUG_PRINT(','); DEBUG_PRINTLN(i2Y);
   markForReset();
   if (boundsUnchanged) return;
 
@@ -1437,10 +1443,12 @@ void WS2812FX::setSegment(uint8_t segId, uint16_t i1, uint16_t i2, uint8_t group
     _qStart  = i1; _qStop   = i2; _qStartY = startY; _qStopY  = stopY;
     _qGrouping = grouping; _qSpacing  = spacing; _qOffset   = offset;
     _queuedChangesSegId = segId;
+    DEBUG_PRINT(F("Segment queued: ")); DEBUG_PRINTLN(segId);
     return; // queued changes are applied immediately after effect function returns
   }
   
   _segments[segId].setUp(i1, i2, grouping, spacing, offset, startY, stopY);
+  if (segId > 0 && segId == getSegmentsNum()-1 && i2 <= i1) _segments.pop_back(); // if last segment was deleted remove it from vector
 }
 
 void WS2812FX::setUpSegmentFromQueuedChanges() {
