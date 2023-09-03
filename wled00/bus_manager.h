@@ -159,7 +159,7 @@ class Bus {
     virtual bool hasCCT(void) { return Bus::hasCCT(_type); }
     static  bool hasCCT(uint8_t type) {
       if (type == TYPE_WS2812_2CH_X3 || type == TYPE_WS2812_WWA ||
-          type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH) return true;
+          type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH || type == TYPE_FW1906) return true;
       return false;
     }
     static void setCCT(uint16_t cct) {

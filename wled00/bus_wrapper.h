@@ -581,6 +581,11 @@ class PolyBus {
       case I_8266_U1_UCS_4: (static_cast<B_8266_U1_UCS_4*>(busPtr))->Show(consistent); break;
       case I_8266_DM_UCS_4: (static_cast<B_8266_DM_UCS_4*>(busPtr))->Show(consistent); break;
       case I_8266_BB_UCS_4: (static_cast<B_8266_BB_UCS_4*>(busPtr))->Show(consistent); break;
+      case I_8266_U0_FW6_5: (static_cast<B_8266_U0_FW6_5*>(busPtr))->Show(consistent); break;
+      case I_8266_U1_FW6_5: (static_cast<B_8266_U1_FW6_5*>(busPtr))->Show(consistent); break;
+      case I_8266_DM_FW6_5: (static_cast<B_8266_DM_FW6_5*>(busPtr))->Show(consistent); break;
+      case I_8266_BB_FW6_5: (static_cast<B_8266_BB_FW6_5*>(busPtr))->Show(consistent); break;
+
     #endif
     #ifdef ARDUINO_ARCH_ESP32
       case I_32_RN_NEO_3: (static_cast<B_32_RN_NEO_3*>(busPtr))->Show(consistent); break;
@@ -633,6 +638,13 @@ class PolyBus {
       case I_32_I1_UCS_4: (static_cast<B_32_I1_UCS_4*>(busPtr))->Show(consistent); break;
       #endif
 //      case I_32_BB_UCS_4: (static_cast<B_32_BB_UCS_4*>(busPtr))->Show(consistent); break;
+      case I_32_RN_FW6_5: (static_cast<B_32_RN_FW6_5*>(busPtr))->Show(consistent); break;
+      #ifndef WLED_NO_I2S0_PIXELBUS
+      case I_32_I0_FW6_5: (static_cast<B_32_I0_FW6_5*>(busPtr))->Show(consistent); break;
+      #endif
+      #ifndef WLED_NO_I2S1_PIXELBUS
+      case I_32_I1_FW6_5: (static_cast<B_32_I1_FW6_5*>(busPtr))->Show(consistent); break;
+      #endif
     #endif
       case I_HS_DOT_3: (static_cast<B_HS_DOT_3*>(busPtr))->Show(consistent); break;
       case I_SS_DOT_3: (static_cast<B_SS_DOT_3*>(busPtr))->Show(consistent); break;
@@ -756,13 +768,6 @@ class PolyBus {
     }
     return true;
   }
-
-  static void setPixelColor(void* busPtr, uint8_t busType, uint16_t pix, uint32_t c, uint8_t co) {
-    uint8_t r = c >> 16;
-    uint8_t g = c >> 8;
-    uint8_t b = c >> 0;
-    uint8_t w = c >> 24;
-    RgbwColor col;
 
   static void setPixelColor(void* busPtr, uint8_t busType, uint16_t pix, uint32_t c, uint8_t co) {
     uint8_t r = c >> 16;
@@ -928,6 +933,10 @@ class PolyBus {
       case I_8266_U1_UCS_4: (static_cast<B_8266_U1_UCS_4*>(busPtr))->SetLuminance(b); break;
       case I_8266_DM_UCS_4: (static_cast<B_8266_DM_UCS_4*>(busPtr))->SetLuminance(b); break;
       case I_8266_BB_UCS_4: (static_cast<B_8266_BB_UCS_4*>(busPtr))->SetLuminance(b); break;
+      case I_8266_U0_FW6_5: (static_cast<B_8266_U0_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_8266_U0_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
+      case I_8266_U1_FW6_5: (static_cast<B_8266_U1_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_8266_U1_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
+      case I_8266_DM_FW6_5: (static_cast<B_8266_DM_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_8266_DM_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
+      case I_8266_BB_FW6_5: (static_cast<B_8266_BB_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_8266_BB_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
     #endif
     #ifdef ARDUINO_ARCH_ESP32
       case I_32_RN_NEO_3: (static_cast<B_32_RN_NEO_3*>(busPtr))->SetLuminance(b); break;
@@ -980,6 +989,14 @@ class PolyBus {
       case I_32_I1_UCS_4: (static_cast<B_32_I1_UCS_4*>(busPtr))->SetLuminance(b); break;
       #endif
 //      case I_32_BB_UCS_4: (static_cast<B_32_BB_UCS_4*>(busPtr))->SetLuminance(b); break;
+      case I_32_RN_FW6_5: (static_cast<B_32_RN_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_32_RN_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
+      #ifndef WLED_NO_I2S0_PIXELBUS
+      case I_32_I0_FW6_5: (static_cast<B_32_I0_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_32_I0_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
+      #endif
+      #ifndef WLED_NO_I2S1_PIXELBUS
+      case I_32_I1_FW6_5: (static_cast<B_32_I1_FW6_5*>(busPtr))->SetLuminance(b); if (immediate) (static_cast<B_32_I1_FW6_5*>(busPtr))->ApplyPostAdjustments(); break;
+      #endif
+
     #endif
       case I_HS_DOT_3: (static_cast<B_HS_DOT_3*>(busPtr))->SetLuminance(b); break;
       case I_SS_DOT_3: (static_cast<B_SS_DOT_3*>(busPtr))->SetLuminance(b); break;
@@ -1326,10 +1343,6 @@ class PolyBus {
   }
 };
 
-<<<<<<< HEAD
-#endif
-=======
 uint8_t PolyBus::cctWW;
 uint8_t PolyBus::cctCW;
 #endif
->>>>>>> 24fff7fd (Remove PolyBus dependency on Bus.)
