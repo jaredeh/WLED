@@ -672,7 +672,7 @@ function populateInfo(i)
 		}
 	}
 	var vcn = "Kuuhaku";
-	if (i.ver.startsWith("0.14.")) vcn = "Hoshi";
+	if (i.ver.startsWith("0.14.")) vcn = "Jared";
 //	if (i.ver.includes("-bl")) vcn = "Supāku";
 	if (i.cn) vcn = i.cn;
 
