@@ -825,10 +825,38 @@ class PolyBus {
       case I_8266_U1_UCS_4: (static_cast<B_8266_U1_UCS_4*>(busPtr))->SetPixelColor(pix, Rgbw64Color(col)); break;
       case I_8266_DM_UCS_4: (static_cast<B_8266_DM_UCS_4*>(busPtr))->SetPixelColor(pix, Rgbw64Color(col)); break;
       case I_8266_BB_UCS_4: (static_cast<B_8266_BB_UCS_4*>(busPtr))->SetPixelColor(pix, Rgbw64Color(col)); break;
-      case I_8266_U0_FW6_5: (static_cast<B_8266_U0_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW)); break;
-      case I_8266_U1_FW6_5: (static_cast<B_8266_U1_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW)); break;
-      case I_8266_DM_FW6_5: (static_cast<B_8266_DM_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW)); break;
-      case I_8266_BB_FW6_5: (static_cast<B_8266_BB_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW)); break;
+      case I_8266_U0_FW6_5:
+        if ((co & 0x0F) == 6) {
+          // Red Green WarmWhite ColdWhite Blue
+          (static_cast<B_8266_U0_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, cctCW, cctWW, col.B));
+        } else {
+          (static_cast<B_8266_U0_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW));
+        }
+        break;
+      case I_8266_U1_FW6_5:
+        if ((co & 0x0F) == 6) {
+          // Green Red WarmWhite ColdWhite Blue
+          (static_cast<B_8266_U1_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.G, col.R, cctCW, cctWW, col.B));
+        } else {
+          (static_cast<B_8266_U1_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW));
+        }
+        break;
+      case I_8266_DM_FW6_5:
+        if ((co & 0x0F) == 6) {
+          // Red Green WarmWhite ColdWhite Blue
+          (static_cast<B_8266_DM_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.G, col.R, cctCW, cctWW, col.B));
+        } else {
+          (static_cast<B_8266_DM_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW));
+        }
+        break;
+      case I_8266_BB_FW6_5:
+        if ((co & 0x0F) == 6) {
+          // Red Green WarmWhite ColdWhite Blue
+          (static_cast<B_8266_BB_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.G, col.R, cctCW, cctWW, col.B));
+        } else {
+          (static_cast<B_8266_BB_FW6_5*>(busPtr))->SetPixelColor(pix, RgbwwColor(col.R, col.G, col.B, cctWW, cctCW));
+        }
+        break;
     #endif
     #ifdef ARDUINO_ARCH_ESP32
       case I_32_RN_NEO_3: (static_cast<B_32_RN_NEO_3*>(busPtr))->SetPixelColor(pix, RgbColor(col)); break;
