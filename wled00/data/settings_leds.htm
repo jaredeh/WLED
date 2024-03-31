@@ -144,13 +144,16 @@
 			if (t < 32) {
 				if (t==26 || t==29) len *= 2; // 16 bit LEDs
 				if (maxM < 10000 && d.getElementsByName("L0"+n)[0].value == 3) { //8266 DMA uses 5x the mem
+					if (t == 28) return len*25 + dbl; //GRBCW
 					if (t > 28) return len*20 + dbl; //RGBW
 					return len*15 + dbl;
 				} else if (maxM >= 10000) //ESP32 RMT uses double buffer?
 				{
+					if (t == 28) return len*10 + dbl; //GRBCW
 					if (t > 28) return len*8 + dbl; //RGBW
 					return len*6 + dbl;
 				}
+				if (t == 28) return len*5 + dbl; //GRBCW
 				if (t > 28) return len*4 + dbl; //RGBW
 				return len*3 + dbl;
 			}
@@ -199,7 +202,7 @@
 					if (t > 31 && t < 48) d.getElementsByName("LC"+n)[0].value = 1; // for sanity change analog count just to 1 LED
 				}
 				gId("rf"+n).onclick = (t == 31) ? (()=>{return false}) : (()=>{});  // prevent change for TM1814
-				gRGBW |= isRGBW = ((t > 17 && t < 22) || (t > 28 && t < 32) || (t > 40 && t < 46 && t != 43) || t == 88); // RGBW checkbox, TYPE_xxxx values from const.h
+				gRGBW |= isRGBW = ((t > 17 && t < 22) || (t > 27 && t < 32) || (t > 40 && t < 46 && t != 43) || t == 88); // RGBW checkbox, TYPE_xxxx values from const.h
 				gId("co"+n).style.display = ((t >= 80 && t < 96) || (t >= 40 && t < 48)) ? "none":"inline";  // hide color order for PWM
 				gId("dig"+n+"w").style.display = (t > 28 && t < 32) ? "inline":"none";  // show swap channels dropdown
 				if (!(t > 28 && t < 32)) d.getElementsByName("WO"+n)[0].value = 0; // reset swapping
@@ -346,6 +349,7 @@ ${i+1}:
 <option value="25">TM1829</option>\
 <option value="26">UCS8903</option>\
 <option value="29">UCS8904 RGBW</option>\
+<option value="28">FW1906 GRBCW</option>\
 <option value="50">WS2801</option>\
 <option value="51">APA102</option>\
 <option value="52">LPD8806</option>\
@@ -372,6 +376,7 @@ ${i+1}:
 <option value="3">RBG</option>
 <option value="4">BGR</option>
 <option value="5">GBR</option>
+<option value="6">GCRWB</option>
 </select></div>
 <div id="dig${i}w" style="display:none">Swap: <select name="WO${i}"><option value="0">None</option><option value="1">W & B</option><option value="2">W & G</option><option value="3">W & R</option></select></div>
 <div id="dig${i}l" style="display:none">Clock: <select name="SP${i}"><option value="0">Slowest</option><option value="1">Slow</option><option value="2">Normal</option><option value="3">Fast</option><option value="4">Fastest</option></select></div>

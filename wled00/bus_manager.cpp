@@ -11,7 +11,6 @@
 
 //colors.cpp
 uint32_t colorBalanceFromKelvin(uint16_t kelvin, uint32_t rgb);
-uint16_t approximateKelvinFromRGB(uint32_t rgb);
 void colorRGBtoRGBW(byte* rgb);
 
 //udp.cpp
@@ -210,6 +209,7 @@ void IRAM_ATTR BusDigital::setPixelColor(uint16_t pix, uint32_t c) {
     }
     if (Bus::hasWhite(_type)) _data[offset] = W(c);
   } else {
+    if (_type == TYPE_FW1906) calculateCCT(c, PolyBus::cctWW, PolyBus::cctCW); // FW1906 ignores W component in c
     if (_reversed) pix = _len - pix -1;
     pix += _skip;
     uint8_t co = _colorOrderMap.getPixelColorOrder(pix+_start, _colorOrder);
@@ -332,29 +332,9 @@ void BusPwm::setPixelColor(uint16_t pix, uint32_t c) {
   uint8_t g = G(c);
   uint8_t b = B(c);
   uint8_t w = W(c);
-  uint8_t cct = 0; //0 - full warm white, 255 - full cold white
-  if (_cct > -1) {
-    if (_cct >= 1900)    cct = (_cct - 1900) >> 5;
-    else if (_cct < 256) cct = _cct;
-  } else {
-    cct = (approximateKelvinFromRGB(c) - 1900) >> 5;
-  }
-
   uint8_t ww, cw;
-  #ifdef WLED_USE_IC_CCT
-  ww = w;
-  cw = cct;
-  #else
-  //0 - linear (CCT 127 = 50% warm, 50% cold), 127 - additive CCT blending (CCT 127 = 100% warm, 100% cold)
-  if (cct       < _cctBlend) ww = 255;
-  else ww = ((255-cct) * 255) / (255 - _cctBlend);
 
-  if ((255-cct) < _cctBlend) cw = 255;
-  else                       cw = (cct * 255) / (255 - _cctBlend);
-
-  ww = (w * ww) / 255; //brightness scaling
-  cw = (w * cw) / 255;
-  #endif
+  calculateCCT(c, ww, cw);
 
   switch (_type) {
     case TYPE_ANALOG_1CH: //one channel (white), relies on auto white calculation
@@ -533,12 +513,15 @@ uint32_t BusManager::memUsage(BusConfig &bc) {
     if (type == TYPE_UCS8903 || type == TYPE_UCS8904) len *= 2; // 16-bit LEDs
     #ifdef ESP8266
       if (bc.pins[0] == 3) { //8266 DMA uses 5x the mem
+        if (type == TYPE_FW1906) return len*25; //GRBCW
         if (type > 28) return len*20; //RGBW
         return len*15;
       }
+      if (type == TYPE_FW1906) return len*5; //GRBCW
       if (type > 28) return len*4; //RGBW
       return len*3;
     #else //ESP32 RMT uses double buffer?
+      if (type == TYPE_FW1906) return len*10; //GRBCW
       if (type > 28) return len*8; //RGBW
       return len*6;
     #endif

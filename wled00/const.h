@@ -236,6 +236,7 @@
 #define TYPE_WS2811_400KHZ       24            //half-speed WS2812 protocol, used by very old WS2811 units
 #define TYPE_TM1829              25
 #define TYPE_UCS8903             26
+#define TYPE_FW1906              28            //RGB + CW + WW + unused channel (6 channels per IC)
 #define TYPE_UCS8904             29
 #define TYPE_SK6812_RGBW         30
 #define TYPE_TM1814              31

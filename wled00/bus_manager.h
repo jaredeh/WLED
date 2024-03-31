@@ -6,6 +6,8 @@
  */
 
 #include "const.h"
+//colors.cpp
+uint16_t approximateKelvinFromRGB(uint32_t rgb);
 
 #define GET_BIT(var,bit)    (((var)>>(bit))&0x01)
 #define SET_BIT(var,bit)    ((var)|=(uint16_t)(0x0001<<(bit)))
@@ -148,7 +150,7 @@ class Bus {
     }
     virtual bool hasWhite(void) { return Bus::hasWhite(_type); }
     static  bool hasWhite(uint8_t type) {
-      if ((type >= TYPE_WS2812_1CH && type <= TYPE_WS2812_WWA) || type == TYPE_SK6812_RGBW || type == TYPE_TM1814 || type == TYPE_UCS8904) return true; // digital types with white channel
+      if ((type >= TYPE_WS2812_1CH && type <= TYPE_WS2812_WWA) || type == TYPE_SK6812_RGBW || type == TYPE_TM1814 || type == TYPE_UCS8904 || type == TYPE_FW1906) return true; // digital types with white channel
       if (type > TYPE_ONOFF && type <= TYPE_ANALOG_5CH && type != TYPE_ANALOG_3CH) return true; // analog types with white channel
       if (type == TYPE_NET_DDP_RGBW) return true; // network types with white channel
       return false;
@@ -156,7 +158,7 @@ class Bus {
     virtual bool hasCCT(void) { return Bus::hasCCT(_type); }
     static  bool hasCCT(uint8_t type) {
       if (type == TYPE_WS2812_2CH_X3 || type == TYPE_WS2812_WWA ||
-          type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH) return true;
+          type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH || type == TYPE_FW1906) return true;
       return false;
     }
     static void setCCT(uint16_t cct) {
@@ -168,6 +170,32 @@ class Bus {
       //compile-time limiter for hardware that can't power both white channels at max
       #ifdef WLED_MAX_CCT_BLEND
         if (_cctBlend > WLED_MAX_CCT_BLEND) _cctBlend = WLED_MAX_CCT_BLEND;
+      #endif
+    }
+    static void calculateCCT(uint32_t c, uint8_t &ww, uint8_t &cw) {
+      uint8_t cct = 0; //0 - full warm white, 255 - full cold white
+      uint8_t w = byte(c >> 24);
+
+      if (_cct > -1) {
+        if (_cct >= 1900)    cct = (_cct - 1900) >> 5;
+        else if (_cct < 256) cct = _cct;
+      } else {
+        cct = (approximateKelvinFromRGB(c) - 1900) >> 5;
+      }
+
+      #ifdef WLED_USE_IC_CCT
+      ww = w;
+      cw = cct;
+      #else
+      //0 - linear (CCT 127 = 50% warm, 50% cold), 127 - additive CCT blending (CCT 127 = 100% warm, 100% cold)
+      if (cct       < _cctBlend) ww = 255;
+      else ww = ((255-cct) * 255) / (255 - _cctBlend);
+
+      if ((255-cct) < _cctBlend) cw = 255;
+      else                       cw = (cct * 255) / (255 - _cctBlend);
+
+      ww = (w * ww) / 255; //brightness scaling
+      cw = (w * cw) / 255;
       #endif
     }
     inline        void    setAutoWhiteMode(uint8_t m) { if (m < 5) _autoWhiteMode = m; }
